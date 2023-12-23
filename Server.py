@@ -79,3 +79,7 @@ class Server:
         for index, datum in enumerate(data):
             self.estimated[datum] = estimated[index]
         return self.estimated
+
+    def estimation_and_next_round(self):
+        self.reports = [np.zeros(self.k) for i in range(0, self.m)]  # clients reports (zeroed bloom filters of size k)
+        self.cohorts = np.zeros(self.m)  # number of reports of each cohort
