@@ -34,13 +34,10 @@ def convertCumulativeFrequencyToInstantaneous(previous, current):
 
 def convertDataFrequencyToBitFrequency(dataFrequency, DATA_SET_SIZE, N):
     bitEstimation = np.zeros(DATA_SET_SIZE)
-    testSum = 0
     for value in dataFrequency:
         bitRepresentation = bin(int(value))[2:].zfill(DATA_SET_SIZE)
         numericalBitRepresentation = np.array([int(char) for char in bitRepresentation])
         bitEstimation = bitEstimation + numericalBitRepresentation * dataFrequency[value]
-        testSum += dataFrequency[value]
-    print("Sum of users:", testSum)
     bitEstimation = bitEstimation / N
     return bitEstimation
 
@@ -85,7 +82,7 @@ for oaer in range(OAER):
     for eps in levels:
         f, g = fg(eps)
         p, q = pq(eps, 1/2 * eps)
-        print(f,g,p,q)
+        
         servers.append(
             Server(f, p, q, k, m, h, alpha)
         )
@@ -112,11 +109,15 @@ for oaer in range(OAER):
             servers[clientSelectedLevel[j]].collect(report)
         estimations.append([])
         for serverIndex in range(len(servers)):
-            l = levels[serverIndex]
             estimated = servers[serverIndex].estimation(Data)
-            frequency = convertCumulativeFrequencyToInstantaneous(cumulativeEstimatedFrequency[l], estimated)
-            cumulativeEstimatedFrequency[l] = estimated.copy()
-            estimations[i].append(convertDataFrequencyToBitFrequency(frequency, DATA_SET_SIZE, N/len(levels)))
+            sumOfEstimatedUsers = np.sum([estimated[i] for i in estimated])
+            for value in estimated:
+                estimated[value] = estimated[value] * ((N/len(levels))/sumOfEstimatedUsers)
+            for value in estimated:
+                if estimated[value] < 0:
+                    raise Exception("Error! Negative frequency.")
+            estimations[i].append(convertDataFrequencyToBitFrequency(estimated, DATA_SET_SIZE, N/len(levels)))
+            servers[serverIndex].clear()
             # estimations.append[estimated]
         endTimestamp = time()
         print(f'Server estimated at {(endTimestamp-startTimestamp)/60} minutes')

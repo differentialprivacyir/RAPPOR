@@ -70,7 +70,7 @@ class Server:
     def estimation(self, data):  # estimating number of times each Word reported. data is all the Words
         x = self._matrix_x(data)
         y = self._vector_y()
-        print(np.sum(self.cohorts))
+        
         # Using Lasso model and ElasticNet to fit a model Y ∼ X
         model = ElasticNet(positive=True, alpha=self.alpha, l1_ratio=0.4, fit_intercept=False, max_iter=10000)
         model.fit(x, y)
@@ -80,6 +80,6 @@ class Server:
             self.estimated[datum] = estimated[index]
         return self.estimated
 
-    def estimation_and_next_round(self):
+    def clear(self):
         self.reports = [np.zeros(self.k) for i in range(0, self.m)]  # clients reports (zeroed bloom filters of size k)
         self.cohorts = np.zeros(self.m)  # number of reports of each cohort
