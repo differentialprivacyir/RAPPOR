@@ -6,14 +6,17 @@ from Client import Client
 from Server import Server
 from datetime import datetime
 from time import time
+import sys
+import pandas as pd
+import math
 
 def fg(epsUlt):
-    f = 2/(1 + e ** (epsUlt/2))
+    f = 2/(1 + math.exp(epsUlt/2))
     g = 1 -f
     return f, g
 
 def pq(epsUlt, epsIns):
-    p = (e**(epsUlt/2) - e**(epsIns/2)) / ((e**(epsUlt/2) - 1)(e**(epsIns/2) + 1))
+    p = (math.exp(epsUlt/2) - math.exp(epsIns/2)) / ((math.exp(epsUlt/2) - 1)*(math.exp(epsIns/2) + 1))
     q = 1 - p
     return p, q
 
@@ -48,7 +51,8 @@ alpha = 0.125  # estimation parameter
 N = int(sys.argv[1]) * 1000  # number of clients
 numbers = np.arange(0, 256)
 Data = [f'{i}' for i in numbers]
-
+#Maximum number of bits in data:
+DATA_SET_SIZE = 8
 #Overal Algorithm Execution Rounds:
 OAER = 50
 # Number of rounds to run the code:
@@ -102,10 +106,10 @@ for oaer in range(OAER):
             servers[clientSelectedLevel[j]].collect(report)
         estimations.append([])
         for serverIndex in range(len(servers)):
-            estimated = server[serverIndex].estimation(Data)
+            estimated = servers[serverIndex].estimation(Data)
             frequency = convertCumulativeFrequencyToInstantaneous(cumulativeEstimatedFrequency, estimated)
             cumulativeEstimatedFrequency = estimated
-            estimations[i].append(convertDataFrequencyToBitFrequency(frequency))
+            estimations[i].append(convertDataFrequencyToBitFrequency(frequency, DATA_SET_SIZE, N))
             # estimations.append[estimated]
         endTimestamp = time()
         print(f'Server estimated at {(endTimestamp-startTimestamp)/60} minutes')
