@@ -70,7 +70,7 @@ class Server:
     def estimation(self, data):  # estimating number of times each Word reported. data is all the Words
         x = self._matrix_x(data)
         y = self._vector_y()
-
+        print(np.sum(self.cohorts))
         # Using Lasso model and ElasticNet to fit a model Y ∼ X
         model = ElasticNet(positive=True, alpha=self.alpha, l1_ratio=0.4, fit_intercept=False, max_iter=10000)
         model.fit(x, y)
