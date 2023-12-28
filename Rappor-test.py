@@ -90,9 +90,9 @@ for oaer in range(OAER):
     # S = Server(f, p, q, k, m, h, alpha)  # creating server S
     # Prepare to keep results of estimations:
     estimations = []
-    cumulativeEstimatedFrequency = dict()
+    cumulativeEstimatedFrequency = {}
     for l in levels:
-        cumulativeEstimatedFrequency[l] = dict()
+        cumulativeEstimatedFrequency[l] = {}
         for value in Data:
             cumulativeEstimatedFrequency[l][value] = 0
     startRoundTime = time()
@@ -110,14 +110,20 @@ for oaer in range(OAER):
         estimations.append([])
         for serverIndex in range(len(servers)):
             estimated = servers[serverIndex].estimation(Data)
-            sumOfEstimatedUsers = np.sum([estimated[i] for i in estimated])
-            for value in estimated:
-                estimated[value] = estimated[value] * ((N/len(levels))/sumOfEstimatedUsers)
+            # sumOfEstimatedUsers = np.sum([estimated[i] for i in estimated])
+            # for value in estimated:
+            #     estimated[value] = estimated[value] * ((N/len(levels))/sumOfEstimatedUsers)
             for value in estimated:
                 if estimated[value] < 0:
+                    print('Negative estimation detected.')
                     raise Exception("Error! Negative frequency.")
-            estimations[i].append(convertDataFrequencyToBitFrequency(estimated, DATA_SET_SIZE, N/len(levels)))
+            bitFrequency = convertDataFrequencyToBitFrequency(estimated, DATA_SET_SIZE, N/len(levels))
+            max = np.max(bitFrequency)
+            if max > 1:
+                bitFrequency /= max
+            estimations[i].append(bitFrequency)
             servers[serverIndex].clear()
+            estimated.clear()
             # estimations.append[estimated]
         endTimestamp = time()
         print(f'Server estimated at {(endTimestamp-startTimestamp)/60} minutes')
