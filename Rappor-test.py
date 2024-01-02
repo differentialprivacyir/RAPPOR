@@ -57,7 +57,7 @@ DATA_SET_SIZE = 8
 OAER = 50
 # Number of rounds to run the code:
 ROUND_CHANGES = 20
-levels = [0.1, 0.3, 0.5, 0.7, 0.9]
+levels = [1, 3, 5, 7, 10]
 averageMSE = [[0] * ROUND_CHANGES for i in levels]
 averageMAE = [[0] * ROUND_CHANGES for i in levels]
 averageME = [[0] * ROUND_CHANGES for i in levels]
