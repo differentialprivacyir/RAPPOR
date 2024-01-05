@@ -57,10 +57,10 @@ DATA_SET_SIZE = 8
 OAER = 50
 # Number of rounds to run the code:
 ROUND_CHANGES = 20
-levels = [1, 3, 5, 7, 10]
-averageMSE = [[0] * ROUND_CHANGES for i in levels]
-averageMAE = [[0] * ROUND_CHANGES for i in levels]
-averageME = [[0] * ROUND_CHANGES for i in levels]
+levels = [0.1, 0.3, 0.5, 0.7, 0.9]
+averageMSE = [0] * ROUND_CHANGES
+averageMAE = [0] * ROUND_CHANGES
+averageME = [0] * ROUND_CHANGES
 csvContent = pd.read_csv(f'./hpcDatasets/{sys.argv[2]}.csv')
 dataSet = np.transpose(csvContent.to_numpy())
 avgBudget = 0
@@ -69,7 +69,7 @@ minBudget = 0
 
 for oaer in range(OAER):
     print(f'Start of round {oaer} at:', datetime.now())
-    clientSelectedLevel = [0] * int(N/len(levels)) + [1] * int(N/len(levels)) + [2] * int(N/len(levels)) + [3] * int(N/len(levels)) + [4] * int(N/len(levels))
+    clientSelectedLevel = [0] * int(N/len(levels)) + [0] * int(N/len(levels)) + [0] * int(N/len(levels)) + [0] * int(N/len(levels)) + [0] * int(N/len(levels))
       
     reports = dict()  # number of times each Word really reported
     estimated = dict()  # estimation of number of times each Word reported
@@ -77,24 +77,16 @@ for oaer in range(OAER):
     real_freq = []
     est_freq = []
 
-    servers = []
     clients = []
-    for eps in levels:
-        f, g = fg(eps)
-        p, q = pq(eps, 1/2 * eps)
-        
-        servers.append(
-            Server(f, p, q, k, m, h, alpha)
-        )
-        clients.extend([Client(f, p, q, k, m, h) for i in range(int(N/len(levels)))])
+    f, g = fg(levels[0])
+    p, q = pq(levels[0], 1/2 * levels[0])
+    
+    server = Server(f, p, q, k, m, h, alpha)
+    
+    clients.extend([Client(f, p, q, k, m, h) for i in range(N)])
     # S = Server(f, p, q, k, m, h, alpha)  # creating server S
     # Prepare to keep results of estimations:
-    estimations = []
-    cumulativeEstimatedFrequency = {}
-    for l in levels:
-        cumulativeEstimatedFrequency[l] = {}
-        for value in Data:
-            cumulativeEstimatedFrequency[l][value] = 0
+    estimations = [0] * ROUND_CHANGES
     startRoundTime = time()
     consumedBudgets = [0 for i in range(N)]
     for i in range(ROUND_CHANGES):
@@ -106,25 +98,24 @@ for oaer in range(OAER):
                     consumedBudgets[j] += (1/2 * levels[clientSelectedLevel[j]])
             report = clients[j].report(f'{dataSet[i][j]}')
             consumedBudgets[j] += levels[clientSelectedLevel[j]]
-            servers[clientSelectedLevel[j]].collect(report)
-        estimations.append([])
-        for serverIndex in range(len(servers)):
-            estimated = servers[serverIndex].estimation(Data)
-            # sumOfEstimatedUsers = np.sum([estimated[i] for i in estimated])
-            # for value in estimated:
-            #     estimated[value] = estimated[value] * ((N/len(levels))/sumOfEstimatedUsers)
-            for value in estimated:
-                if estimated[value] < 0:
-                    print('Negative estimation detected.')
-                    raise Exception("Error! Negative frequency.")
-            bitFrequency = convertDataFrequencyToBitFrequency(estimated, DATA_SET_SIZE, N/len(levels))
-            max = np.max(bitFrequency)
-            if max > 1:
-                bitFrequency /= max
-            estimations[i].append(bitFrequency)
-            servers[serverIndex].clear()
-            estimated.clear()
-            # estimations.append[estimated]
+            server.collect(report)
+            
+        estimated = server.estimation(Data)
+        # sumOfEstimatedUsers = np.sum([estimated[i] for i in estimated])
+        # for value in estimated:
+        #     estimated[value] = estimated[value] * ((N/len(levels))/sumOfEstimatedUsers)
+        for value in estimated:
+            if estimated[value] < 0:
+                print('Negative estimation detected.')
+                raise Exception("Error! Negative frequency.")
+        bitFrequency = convertDataFrequencyToBitFrequency(estimated, DATA_SET_SIZE, N)
+        max = np.max(bitFrequency)
+        if max > 1:
+            bitFrequency /= max
+        estimations[i] = bitFrequency
+        server.clear()
+        estimated.clear()
+        # estimations.append[estimated]
         endTimestamp = time()
         print(f'Server estimated at {(endTimestamp-startTimestamp)/60} minutes')
         startTimestamp = time()
@@ -145,33 +136,32 @@ for oaer in range(OAER):
     for r in range(ROUND_CHANGES):
         print(f'\n\n\n ========================================== \nResults of Round {r}:\n==========================================')
         error = []
-        for index, estimation in enumerate(estimations[r]):
-            print(f'Evaluation for level eps = {levels[index]}')
-            for i, _ in enumerate(normalized[r]):  # calculating errors
-                error.append(abs(estimation[i] - normalized[r][i]) * 100)
-                print("index:", i, "-> Estimated:", estimation[i], " Real:", normalized[r][i], " Error: %", int(error[-1]))
-            print("Global Mean Square Error:", mean_squared_error(normalized[r], estimation))
-            print("Global Mean Absolute Error:", mean_absolute_error(normalized[r], estimation))
-            averageMSE[index][r] = (averageMSE[index][r] * oaer + mean_squared_error(normalized[r], estimation))/(oaer+1)
-            averageMAE[index][r] = (averageMAE[index][r] * oaer + mean_absolute_error(normalized[r], estimation))/(oaer+1)
+        print(f'Evaluation for level eps = {levels[0]}')
+        for i, _ in enumerate(normalized[r]):  # calculating errors
+            error.append(abs(estimations[r][i] - normalized[r][i]) * 100)
+            print("index:", i, "-> Estimated:", estimations[r][i], " Real:", normalized[r][i], " Error: %", int(error[-1]))
+        print("Global Mean Square Error:", mean_squared_error(normalized[r], estimations[r]))
+        print("Global Mean Absolute Error:", mean_absolute_error(normalized[r], estimations[r]))
+        averageMSE[r] = (averageMSE[r] * oaer + mean_squared_error(normalized[r], estimations[r]))/(oaer+1)
+        averageMAE[r] = (averageMAE[r] * oaer + mean_absolute_error(normalized[r], estimations[r]))/(oaer+1)
 
 
     meanOfRounds = np.mean(dataSet, axis=1)
     print('Real Mean of rounds is:', meanOfRounds)
     outputMean = []
     for r in range(ROUND_CHANGES):
-        outputMean.append([])
-        for index, estimationAtL in enumerate(estimations[r]):
-            ROUND_MEAN = 0
-            REAL_ROUND_MEAN = 0
-            for index2, number in enumerate(estimationAtL):
-                ROUND_MEAN += (number*(N) * 2 ** (len(estimationAtL) - 1 - index2))
-                REAL_ROUND_MEAN += (normalized[r][index2]*(N) * 2 ** (len(estimationAtL) - 1 - index2))
-            ROUND_MEAN /= N
-            REAL_ROUND_MEAN /= N
-            print(f'Mean Difference at round {r} and level {levels[index]}:', abs(ROUND_MEAN - meanOfRounds[r]), abs(meanOfRounds[r] - REAL_ROUND_MEAN))
-            averageME[index][r] = (averageME[index][r] * oaer + abs(ROUND_MEAN - meanOfRounds[r]))/(oaer+1)
-            outputMean[r].append(ROUND_MEAN)
+        outputMean.append(0)
+        
+        ROUND_MEAN = 0
+        REAL_ROUND_MEAN = 0
+        for index2, number in enumerate(estimations[r]):
+            ROUND_MEAN += (number*(N) * 2 ** (len(estimations[r]) - 1 - index2))
+            REAL_ROUND_MEAN += (normalized[r][index2]*(N) * 2 ** (len(estimations[r]) - 1 - index2))
+        ROUND_MEAN /= N
+        REAL_ROUND_MEAN /= N
+        print(f'Mean Difference at round {r} and level {levels[0]}:', abs(ROUND_MEAN - meanOfRounds[r]), abs(meanOfRounds[r] - REAL_ROUND_MEAN))
+        averageME[r] = (averageME[r] * oaer + abs(ROUND_MEAN - meanOfRounds[r]))/(oaer+1)
+        outputMean[r] = ROUND_MEAN
     print("Estimated Mean is:", outputMean)
     avgBudget = (avgBudget * oaer + np.mean(consumedBudgets))/(oaer + 1)
     maxBudget = (maxBudget * oaer + np.max(consumedBudgets))/(oaer + 1)
